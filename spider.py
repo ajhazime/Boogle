@@ -123,7 +123,8 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
         page_outlinks: list[str]=[]
 
         for tag in soup.find_all("a", href=True):
-            href=tag["href"].strip()
+            #cast to string for .strip
+            href=str(tag["href"]).strip()
             absolute=normalize(urljoin(current_url, href))
 
             #stay on the same domain
@@ -152,7 +153,8 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
         #image collection
         page_images: list[str]=[]
         for img in soup.find_all("img", src=True):
-            src=img["src"].strip()
+            #cast to str for strip
+            src=str(img["src"]).strip()
             absolute_src=urljoin(current_url, src)
             page_images.append(absolute_src)
 
@@ -183,7 +185,7 @@ def print_summary(data: dict) -> None:
     for url, links in list(outlinks.items())[:3]:
         print(f"  {url}")
         for link in links[:3]:
-            print(f"    --> {link}")
+            print(f" --> {link}")
 
 
 if __name__ == "__main__":
