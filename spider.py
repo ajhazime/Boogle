@@ -58,7 +58,7 @@ def crawl(seed: str, max_pages: int = MAX_PAGES) -> dict:
             response = requests.get(current_url, timeout=5)
             response.raise_for_status()
         except Exception as e:
-            print(f"  ✗ Failed: {e}")
+            print(f"  Failed: {e}")
             visited.add(current_url)
             continue
 
@@ -69,7 +69,7 @@ def crawl(seed: str, max_pages: int = MAX_PAGES) -> dict:
         page_outlinks: list[str] = []
 
         for tag in soup.find_all("a", href=True):
-            href     = tag["href"].strip()
+            href = tag["href"].strip()
             absolute = normalize(urljoin(current_url, href))
 
             #stay on the same domain
@@ -123,13 +123,13 @@ def print_summary(data: dict) -> None:
     print("\n── Top 5 most linked-to pages ──")
     sorted_bl = sorted(backlinks.items(), key=lambda x: len(x[1]), reverse=True)
     for url, sources in sorted_bl[:5]:
-        print(f"  ← {len(sources):3}  {url}")
+        print(f"  <-- {len(sources):3}  {url}")
 
     print("\n── Sample outlinks (first 3 pages) ──")
     for url, links in list(outlinks.items())[:3]:
         print(f"  {url}")
         for link in links[:3]:
-            print(f"    → {link}")
+            print(f" --> {link}")
 
 
 if __name__ == "__main__":
