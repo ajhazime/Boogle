@@ -39,7 +39,8 @@ def save_to_mongo(data: dict) -> None:
         pages_ops.append(UpdateOne(
             {"url": url},
             {"$set": {
-                "url":      url,
+                "url": url,
+                "html": data["html"].get(url, ""),
                 "outlinks": links,
                 "images":   images.get(url, []),
             }},
@@ -81,9 +82,10 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
     URLs seen more often across pages get crawled first.
 
     Returns a dict with three stores:
-        outlinks  – { url: [urls this page links to] }
-        backlinks – { url: [urls that link TO this page] }
-        images    – { url: [image src urls found on this page] }
+        outlinks: { url: [urls this page links to] }
+        html_store: {url, [text from url]}
+        backlinks: { url: [urls that link TO this page] }
+        images: { url: [image src urls found on this page] }
     """
     seed_domain=get_domain(seed)
     seed=normalize(seed)
@@ -97,6 +99,7 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
     outlinks: dict[str, list[str]]={}
     backlinks: dict[str, list[str]]={}
     images: dict[str, list[str]]={}
+    html_store: dict[str, str] = {}
 
     while queue and len(visited) < max_pages:
         _, current_url=heapq.heappop(queue)
@@ -117,6 +120,7 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
             continue
 
         visited.add(current_url)
+        html_store[current_url] = response.text # save html text
         soup=BeautifulSoup(response.text, "lxml")
 
         #collecting outlinks
@@ -162,7 +166,7 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
 
         time.sleep(DELAY)
 
-    return {"outlinks": outlinks, "backlinks": backlinks, "images": images}
+    return {"outlinks": outlinks, "backlinks": backlinks, "images": images, "html": html_store}
 
 
 def print_summary(data: dict) -> None:
