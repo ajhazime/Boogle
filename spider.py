@@ -13,7 +13,7 @@ from pymongo import MongoClient, UpdateOne
 load_dotenv()
 
 SEED_URL="https://books.toscrape.com"
-MAX_PAGES=10
+MAX_PAGES=50
 DELAY=0.1
 
 
