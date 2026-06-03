@@ -1,9 +1,8 @@
-import heapq
 import time
 import os
-
 import requests
 import certifi
+import redis
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
@@ -12,10 +11,21 @@ from pymongo import MongoClient, UpdateOne
 
 load_dotenv()
 
+
+"""
+GLOBAL VARIABLES
+"""
 SEED_URL="https://books.toscrape.com"
 MAX_PAGES=50
 DELAY=0.1
 
+#
+#END OF GLOBAL VAR
+#
+
+
+#connect to redis
+r = redis.Redis(host='localhost', port=6379)
 
 #connects to mongodb and returns boogle database
 def get_db():
@@ -90,36 +100,45 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
     seed_domain=get_domain(seed)
     seed=normalize(seed)
 
-    # Priority queue: (-count, url)
-    # Negated so higher count = higher priority in Python's min-heap
-    url_count: dict[str, int]={seed: 1}
-    queue: list[tuple[int, str]]=[(-1, seed)]
+    #Clear old redis data and push seed url 
+    # SHOULD BE REMOVED IN PRODUCTION 
+    r.delete('crawl_queue')
+    r.delete('visted')
+    r.zadd('crawl_queue', {seed: -1})
 
-    visited: set[str]=set()
+    # pqueue removed in commit 13
+    
     outlinks: dict[str, list[str]]={}
     backlinks: dict[str, list[str]]={}
     images: dict[str, list[str]]={}
     html_store: dict[str, str] = {}
 
-    while queue and len(visited) < max_pages:
-        _, current_url=heapq.heappop(queue)
+    #updated to use redis (commit 13)
+    crawled = 0
+    while r.zcard('crawl_queue') > 0 and crawled < max_pages:
+        #pop highest result priority from redis queue
+        result = r.zpopmin('crawl_queue', 1)
+        if not result:
+            break
+        current_url = result[0][0].decode ('utf-8')
         current_url=normalize(current_url)
 
-        if current_url in visited:
+        #skip if visited
+        if r.sismember('visited', current_url):
             continue
 
-        priority=url_count.get(current_url, 1)
-        print(f"[{len(visited)+1}/{max_pages}] (priority {priority}) {current_url}")
-
+        
+        print(f"[{crawled+1}/{max_pages}] {current_url}")
         try:
             response=requests.get(current_url, timeout=5)
             response.raise_for_status()
         except Exception as e:
             print(f"  Failed: {e}")
-            visited.add(current_url)
+            r.sadd('visited', current_url)
             continue
 
-        visited.add(current_url)
+        r.sadd('visited', current_url)
+        crawled += 1
         html_store[current_url] = response.text # save html text
         soup=BeautifulSoup(response.text, "lxml")
 
@@ -147,10 +166,12 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
             if current_url not in backlinks[absolute]:
                 backlinks[absolute].append(current_url)
 
-            #update priority and enqueue
-            url_count[absolute]=url_count.get(absolute, 0) + 1
-            if absolute not in visited:
-                heapq.heappush(queue, (-url_count[absolute], absolute))
+            #update priority and enqueue in redis
+            #update priority and enqueue in redis
+            score=r.zscore('crawl_queue', absolute)
+            new_score=(score - 1) if score else -1
+            if not r.sismember('visited', absolute):
+                r.zadd('crawl_queue', {absolute: new_score})
 
         outlinks[current_url]=page_outlinks
 
