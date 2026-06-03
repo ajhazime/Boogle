@@ -29,6 +29,24 @@ class SearchController extends Controller
                 }
             }
         }
+
+        /* 
+        ==================================================
+        adding pagerank (after commit 9, before commit 10) 
+        ==================================================
+        */
+
+        //get pagerank collection
+        $pagerankCollection = $db->pagerank;
+        //multiply each result score by its pagerank score
+        foreach ($results as $url => $score){
+            $pr = $pagerankCollection->findOne(['url' => $url]);
+            if($pr){
+                $results[$url] = $score * $pr['score'];
+            }
+        }
+        /* end pagerank addition */
+
         arsort($results); //sort scores in descending order
         return response()->json($results);
     }
