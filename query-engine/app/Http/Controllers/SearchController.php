@@ -6,9 +6,31 @@ use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
-    public function search(Request $request)
-    {
-        
-    }
+    public function search(Request $request){
+        $searchRequest = $request->input('q');
+        $words = explode(' ', $searchRequest); //split searchRequest into words
 
+        /* Connecting MongoDB */
+        $mongo = new \MongoDB\Client(env('MONGO_URI'), [], ['tlsCAFile' => '/opt/homebrew/etc/openssl@3/cert.pem']);
+        $db = $mongo->boogle;
+        $indexCollection = $db->index;
+
+        $results = [];
+        foreach($words as $word){
+            $doc = $indexCollection->findOne(['word' => $word]); //search for docs containing word
+            if ($doc){ //if a doc has the word search its urls and add score to results
+                foreach($doc['urls'] as $url => $score){
+                    if(isset($results[$url])){
+                        $results[$url] += $score; //add to url's score
+                    } 
+                    else {
+                        $results[$url] = $score; //add url and score to results
+                    }
+                }
+            }
+        }
+        arsort($results); //sort scores in descending order
+        return response()->json($results);
+    }
 }
+
