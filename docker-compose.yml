@@ -1,0 +1,24 @@
+services:
+  query1:
+    image: boogle-query
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    expose:
+      - "8000"
+
+  query2:
+    image: boogle-query
+    environment:
+      - MONGO_URI=${MONGO_URI}
+    expose:
+      - "8000"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - query1
+      - query2
