@@ -47,7 +47,7 @@ class SearchController extends Controller
         }
         /* end pagerank addition */
 
-        arsort($results); //sort scores in descending order
+        arsort($results); //sort scores in descending order 
         return response()->json($results);
     }
 }
