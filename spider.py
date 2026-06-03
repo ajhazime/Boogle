@@ -120,7 +120,7 @@ def crawl(seed: str, max_pages: int=MAX_PAGES) -> dict:
         result = r.zpopmin('crawl_queue', 1)
         if not result:
             break
-        current_url = result[0][0].decode ('utf-8')
+        current_url = result[0][0].decode('utf-8')
         current_url=normalize(current_url)
 
         #skip if visited

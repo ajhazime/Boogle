@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"net/url"
+	"io"
 
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/html"
@@ -76,20 +77,28 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 		
 		fmt.Printf("[%d/%d] %s\n", crawled+1, MAX_PAGES, currentURL)
 
+		
 		//fetch page
 		response, err := http.Get(currentURL)
 		if err != nil {
 			rdb.SAdd(ctx, "visited", currentURL)
 			continue
 		}
-		defer response.Body.Close()
+
+		//read body into string so we can use it twice
+		bodyBytes, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			continue
+		}
+		bodyString := string(bodyBytes)
 
 		//mark as visited and increment crawled
 		rdb.SAdd(ctx, "visited", currentURL)
 		crawled++
 
 		//parse HTML
-		doc, err := html.Parse(response.Body)
+		doc, err := html.Parse(strings.NewReader(bodyString))
 		if err != nil {
 			continue
 		}
@@ -146,7 +155,7 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 			URL:      currentURL,
 			Outlinks: outlinks,
 			Images:   images,
-			HTML:     "",
+			HTML: bodyString,
 		}
 		savePage(db, page)
 
