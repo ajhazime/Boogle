@@ -3,34 +3,34 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
-	"net/url"
-	"io"
 
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/net/html"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"golang.org/x/net/html"
 )
 
 const (
-    SEED_URL  = "https://books.toscrape.com"
-    MAX_PAGES = 50
-    DELAY     = 100 * time.Millisecond
+	SEED_URL  = "https://books.toscrape.com"
+	MAX_PAGES = 50
+	DELAY     = 100 * time.Millisecond
 )
 
 type Page struct {
-    URL      string   
-    Outlinks []string 
-    Images   []string 
-    HTML     string   
+	URL      string
+	Outlinks []string
+	Images   []string
+	HTML     string
 }
 
-func main () {
+func main() {
 	/* Redis Connection */
 	rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
 
@@ -57,7 +57,6 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 	rdb.Del(ctx, "crawl_queue", "visited")
 	rdb.ZAdd(ctx, "crawl_queue", redis.Z{Score: -1, Member: seed})
 
-
 	//crawl loop
 	crawled := 0
 	for crawled < MAX_PAGES {
@@ -66,18 +65,17 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 		if err != nil || len(results) == 0 {
 			break
 		}
-		
+
 		currentURL := results[0].Member.(string)
-		
+
 		//skip if visited
 		visited, _ := rdb.SIsMember(ctx, "visited", currentURL).Result()
 		if visited {
 			continue
 		}
-		
+
 		fmt.Printf("[%d/%d] %s\n", crawled+1, MAX_PAGES, currentURL)
 
-		
 		//fetch page
 		response, err := http.Get(currentURL)
 		if err != nil {
@@ -115,7 +113,6 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 					//extract href
 					for _, attr := range n.Attr {
 						if attr.Key == "href" {
-							
 
 							link := resolveURL(currentURL, attr.Val)
 							if link != "" && (strings.HasPrefix(link, "https://books.toscrape.com") || strings.HasPrefix(link, "http://books.toscrape.com")) {
@@ -139,7 +136,6 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 		}
 		traverse(doc)
 
-
 		//update redis priority queue with outlinks
 		for _, link := range outlinks {
 			score, _ := rdb.ZScore(ctx, "crawl_queue", link).Result()
@@ -155,44 +151,42 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 			URL:      currentURL,
 			Outlinks: outlinks,
 			Images:   images,
-			HTML: bodyString,
+			HTML:     bodyString,
 		}
 		savePage(db, page)
 
 		//delay between requests
 		time.Sleep(DELAY)
 
-
 	}
 }
 
-
 /*resolveURL - resolves relative urls to absolute*/
 func resolveURL(base, href string) string {
-    if strings.HasPrefix(href, "#") || href == "" {
-        return ""
-    }
-    baseURL, err := url.Parse(base)
-    if err != nil {
-        return ""
-    }
-    refURL, err := url.Parse(href)
-    if err != nil {
-        return ""
-    }
-    resolved := baseURL.ResolveReference(refURL)
-    return resolved.String()
+	if strings.HasPrefix(href, "#") || href == "" {
+		return ""
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return ""
+	}
+	refURL, err := url.Parse(href)
+	if err != nil {
+		return ""
+	}
+	resolved := baseURL.ResolveReference(refURL)
+	return resolved.String()
 }
 
 /* saves a page to mongodb */
 func savePage(db *mongo.Database, page Page) {
-    ctx := context.Background()
-    collection := db.Collection("pages")
-    filter := bson.D{{Key: "url", Value: page.URL}}
-    update := bson.D{{Key: "$set", Value: page}}
-    opts := options.UpdateOne().SetUpsert(true)
-    _, err := collection.UpdateOne(ctx, filter, update, opts)
-    if err != nil {
-        fmt.Println("Error saving page:", err)
-    }
+	ctx := context.Background()
+	collection := db.Collection("pages")
+	filter := bson.D{{Key: "url", Value: page.URL}}
+	update := bson.D{{Key: "$set", Value: page}}
+	opts := options.UpdateOne().SetUpsert(true)
+	_, err := collection.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		fmt.Println("Error saving page:", err)
+	}
 }

@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     unzip\
     openssl\
     libssl-dev\
+    ca-certificates\
+    && update-ca-certificates\
     && pecl install mongodb\
     && docker-php-ext-enable mongodb
 
