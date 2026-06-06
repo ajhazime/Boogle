@@ -11,7 +11,7 @@ class SearchController extends Controller
         $words = explode(' ', $searchRequest); //split searchRequest into words
 
         /* Connecting MongoDB */
-        $mongo = new \MongoDB\Client(env('MONGO_URI'));
+        $mongo = new \MongoDB\Client(env('MONGO_URI'), [], ['tlsInsecure' => true]);
         $db = $mongo->boogle;
         $indexCollection = $db->index;
 
