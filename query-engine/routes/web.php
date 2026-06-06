@@ -12,11 +12,9 @@ Route::get('/', function () {
 Route::get('/search', [SearchController::class, 'search']);
 
 Route::get('/debug', function() {
-    $certExists = file_exists('/etc/ssl/certs/ca-certificates.crt');
-    $opensslVersion = openssl_version_number();
     return response()->json([
-        'cert_exists' => $certExists,
-        'openssl_version' => $opensslVersion,
+        'cert_exists' => file_exists('/etc/ssl/certs/ca-certificates.crt'),
+        'openssl_loaded' => extension_loaded('openssl'),
         'php_version' => PHP_VERSION,
     ]);
 });
