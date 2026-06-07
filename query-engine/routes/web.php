@@ -10,4 +10,3 @@ Route::get('/', function () {
 });
 
 Route::get('/search', [SearchController::class, 'search']);
-
