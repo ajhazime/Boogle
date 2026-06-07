@@ -414,6 +414,7 @@
     }
 
     btn.addEventListener('click', doSearch);
+    btn.addEventListener('touchend', doSearch);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 </script>
 </body>
