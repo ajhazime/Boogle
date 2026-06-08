@@ -62,42 +62,58 @@ def compute_tfidf(freq: dict[str, int], all_freqs: list[dict[str,int]]) -> dict[
         results[word] = float(TF * IDF)
     return results
 
-#saves inverted index to MongoDB 
+#saves inverted index to MongoDB w/ bulk write and batching
 def save_index(index: dict[str, dict[str, float]]) -> None:
-    db = get_db()
-    for word in index: #loop through each word and its url score
-        db["index"].update_one(
-            {"word": word}, # find document where word matches
-            {"$set": {  # set these fields
-            "word": word,
-            "urls": index[word] # the url -> score dictionary
+    db=get_db()
+    print(f"Saving {len(index)} words in batches...")
+    ops=[]
+    for word in index:
+        ops.append(UpdateOne(
+            {"word": word},
+            {"$set": {
+                "word": word,
+                "urls": index[word]
             }},
-        upsert=True # create if doesn't exist
-        )
-    print(f"{len(index)} inserted into DB")
+            upsert=True
+        ))
+    
+    batch_size=500
+    for i in range(0, len(ops), batch_size):
+        batch=ops[i:i+batch_size]
+        db["index"].bulk_write(batch)
+        print(f"  Saved {min(i+batch_size, len(ops))}/{len(ops)}")
+    
+    print(f"{len(index)} words saved to index")
 
 
 if __name__ == "__main__":
+    print("Fetching pages...")
     pages = list(fetch_pages())
-
-    all_freqs =[]
+    print(f"Found {len(pages)} pages")
+    
+    all_freqs = []
     urls = []
 
-    for page in pages:
-        text = extract_text(page["html"]) #extract text
-        cleanText = clean_text(text) #clean text
-        wordFrequency = build_word_frequency(cleanText)
-        all_freqs.append(wordFrequency)
-        urls.append(page["url"])
-
+    for i, page in enumerate(pages):
+        if page.get("html"):
+            text = extract_text(page["html"])
+            cleanText = clean_text(text)
+            wordFrequency = build_word_frequency(cleanText)
+            all_freqs.append(wordFrequency)
+            urls.append(page["url"])
+        if i % 50 == 0:
+            print(f"Processed {i}/{len(pages)} pages")
 
     index = {}
     for i, freq in enumerate(all_freqs):
+        if i % 50 == 0:
+            print(f"Computing TF-IDF {i}/{len(all_freqs)}")
         tfidf = compute_tfidf(freq, all_freqs)
         for word, score in tfidf.items():
             if word not in index:
                 index[word] = {}
             index[word][urls[i]] = score
-    
+
+    print(f"Index built with {len(index)} words")
+    print("Saving to MongoDB...")
     save_index(index)
-            

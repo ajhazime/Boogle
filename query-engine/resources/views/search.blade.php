@@ -357,6 +357,7 @@
 
     async function doSearch() {
         const q = input.value.trim();
+        window.history.pushState({}, '', `/search?q=${encodeURIComponent(q)}`)
         if (!q) return;
 
         resultsEl.innerHTML = '';

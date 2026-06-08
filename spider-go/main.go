@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	SEED_URL  = "https://books.toscrape.com"
-	MAX_PAGES = 50
-	DELAY     = 100 * time.Millisecond
+	SEED_URL  = "https://en.wikipedia.org/wiki/Main_Page"
+	MAX_PAGES = 500
+	DELAY = 500 * time.Millisecond
 )
 
 type Page struct {
-	URL      string
+	URL string
 	Outlinks []string
-	Images   []string
-	HTML     string
+	Images []string
+	HTML string
 }
 
 func main() {
@@ -36,12 +36,12 @@ func main() {
 
 	/* mongodb connection */
 	uri := os.Getenv("MONGO_URI")
-	client, err := mongo.Connect(options.Client().ApplyURI(uri))
+	mongoClient, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		panic(err)
 	}
-	defer client.Disconnect(context.Background()) //disconnect when main exits
-	db := client.Database("boogle")
+	defer mongoClient.Disconnect(context.Background()) //disconnect when main exits
+	db := mongoClient.Database("boogle")
 
 	/* Start crawl*/
 	fmt.Println("Starting crawl from:", SEED_URL)
@@ -77,11 +77,14 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 		fmt.Printf("[%d/%d] %s\n", crawled+1, MAX_PAGES, currentURL)
 
 		//fetch page
-		response, err := http.Get(currentURL)
+		req, err := http.NewRequest("GET", currentURL, nil)
 		if err != nil {
 			rdb.SAdd(ctx, "visited", currentURL)
 			continue
 		}
+		req.Header.Set("User-Agent", "Booglebot/1.0 (https://boogle.app; educational search engine)") //User-Agent header
+		client := &http.Client{}
+		response, err := client.Do(req)
 
 		//read body into string so we can use it twice
 		bodyBytes, err := io.ReadAll(response.Body)
@@ -115,8 +118,7 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 						if attr.Key == "href" {
 
 							link := resolveURL(currentURL, attr.Val)
-							if link != "" && (strings.HasPrefix(link, "https://books.toscrape.com") || strings.HasPrefix(link, "http://books.toscrape.com")) {
-								outlinks = append(outlinks, link)
+							if link != "" && (strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "https://")) {								outlinks = append(outlinks, link)
 							}
 						}
 					}
@@ -148,10 +150,10 @@ func crawl(seed string, db *mongo.Database, rdb *redis.Client) {
 
 		//save page to mongodb
 		page := Page{
-			URL:      currentURL,
+			URL: currentURL,
 			Outlinks: outlinks,
-			Images:   images,
-			HTML:     bodyString,
+			Images: images,
+			HTML: bodyString,
 		}
 		savePage(db, page)
 
