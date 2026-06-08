@@ -1,11 +1,17 @@
 
 A full-stack search engine built from scratch, live at boogle.app.
+
+
 Architecture
+
+
 Spider (Go) → Redis Queue → MongoDB Atlas → Indexer (Python) → Query Engine (Laravel/PHP)
                                     ↓
                              PageRank (Go)
                                     ↓
                          AWS ECS + Nginx + ALB
+
+                         
 Components
 
 Spider — Go
