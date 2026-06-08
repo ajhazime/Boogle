@@ -1,18 +1,22 @@
 
-A full-stack search engine built from scratch, live at boogle.app.
+**A full-stack search engine built from scratch, live at boogle.app.**  
 
 
-Architecture
+
+Architecture  
 
 
-Spider (Go) → Redis Queue → MongoDB Atlas → Indexer (Python) → Query Engine (Laravel/PHP)
-                                    ↓
-                             PageRank (Go)
-                                    ↓
-                         AWS ECS + Nginx + ALB
+
+Spider (Go) → Redis Queue → MongoDB Atlas → Indexer (Python) → Query Engine (Laravel/PHP) <br>
+<br>
+                                      ↓ <br>
+                               PageRank (Go) <br>
+                                      ↓ <br>
+                           AWS ECS + Nginx + ALB <br>
 
                          
-Components
+<br><br>**Components**  
+
 
 Spider — Go
 BFS web crawler with a Redis-backed priority queue. Pages linked to by many other pages are crawled first. Deduplication via Redis Sets prevents multiple spiders from crawling the same URL.
@@ -45,13 +49,13 @@ Combines TF-IDF scores across query words
 Multiplies by PageRank score for final ranking
 Returns results sorted by cumulative score
 
-Infrastructure
+**Infrastructure**
 
-MongoDB Atlas — persistent storage for pages, index, and PageRank scores
-Redis — in-memory URL queue and visited set for distributed crawling
-Docker — containerized query engine 
-AWS ECS Fargate — serverless container hosting (2 instances)
-AWS ALB — load balancer distributing traffic across instances
-AWS Route 53 — DNS management for boogle.app
-AWS ACM — free SSL/TLS certificate
-Nginx — local load balancer for development
+MongoDB Atlas — persistent storage for pages, index, and PageRank scores <br>
+Redis — in-memory URL queue and visited set for distributed crawling <br>
+Docker — containerized query engine  <br>
+AWS ECS Fargate — serverless container hosting (2 instances) <br>
+AWS ALB — load balancer distributing traffic across instances <br>
+AWS Route 53 — DNS management for boogle.app <br>
+AWS ACM — free SSL/TLS certificate <br>
+Nginx — local load balancer for development <br>
